@@ -1,13 +1,14 @@
 package naren.ragu.chip8emujavafx;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HexFormat;
 import java.util.Random;
 
-public class Chip8 {
+public class Chip8 implements Serializable {
 
     Random random;
     boolean emulate = true;
@@ -27,7 +28,7 @@ public class Chip8 {
     // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
     // 0x200-0xFFF - Program ROM and work RAM
 
-    char[] gfx;
+    byte[] gfx;
 
     char delay_timer;
     char sound_timer;
@@ -44,7 +45,7 @@ public class Chip8 {
         random = new Random();
         memory = new char[4096];
         V = new char[16];
-        gfx = new char[64 * 32];
+        gfx = new byte[64 * 32];
         stack = new char[16];
         key = new char[16];
 
@@ -87,13 +88,25 @@ public class Chip8 {
         sp = 0;     // Reset stack pointer
 
         // Clear display
-        gfx = new char[64 * 32];
+        //gfx = new byte[64 * 32];
+        for(int i = 0 ; i < gfx.length ; i++){
+            gfx[i] = 0;
+        }
         // Clear stack
-        stack = new char[16];
+        //stack = new char[16];
+        for(int i = 0 ; i < stack.length ; i++){
+            stack[i] = 0;
+        }
         // Clear registers V0-VF
-        V = new char[16];
+        //V = new char[16];
+        for(int i = 0 ; i < V.length ; i++){
+            V[i] = 0;
+        }
         // Clear memory
-        memory = new char[4096];
+        //memory = new char[4096];
+        for(int i = 0 ; i < memory.length ; i++){
+            memory[i] = 0;
+        }
 
         // Load fontset
         for(int i = 0; i < 80; ++i){
@@ -104,7 +117,8 @@ public class Chip8 {
         delay_timer = 0;
         sound_timer = 0;
 
-        memory[0x1FF] = 0x1;
+        drawFlag = true;
+        //memory[0x1FF] = 0x1;
     }
 
     void emulateCycle(){
@@ -114,297 +128,239 @@ public class Chip8 {
         }
 
         // Fetch Opcode
-        opcode = (char)((memory[pc] << 8) | memory[pc + 1]);
+        char hi = memory[pc++];
+        char lo = memory[pc++];
+        opcode = (char) ((hi << 8) | lo);
+
+        char x = (char) (hi & 0xF);
+        char y = (char) (lo >>> 4);
+        char n = (char) (lo & 0xF);
+        char nnn = (char) (opcode & 0xFFF);
         // Decode Opcode
 
         // Get instruction
-        switch(opcode & 0xF000){
+        switch (opcode & 0xF000) {
             case 0x0000:
-                switch(opcode & 0x00FF){
-                    case 0x00E0: // 0x00E0 : Clear screen
-                        gfx = new char[64 * 32];
+                switch (nnn) {
+                    case 0x0E0: // 0x00E0 : Clear screen
+                        for(int i = 0 ; i < gfx.length ; i++){
+                            gfx[i] = 0;
+                        }
+                        drawFlag = true;
                         break;
-                    case 0x00EE: // 0x00EE : Return from subroutine
-                        sp--;
-                        pc = stack[sp];
+                    case 0x0EE: // 0x00EE : Return from subroutine
+                        pc = stack[--sp];
+                        drawFlag = true;
                         break;
-                    case 0x0000:{
+                    case(0x000):
                         emulate = false;
-                        dontIncPC();
                         break;
-                    }
                     default:
                         System.out.println("Invalid 0 Opcode " + Integer.toHexString(opcode & 0xFFFF));
-                        dontIncPC();
                         break;
                 }
                 break;
             case 0x1000: // 0x1XXX : Jump to address at XXX
-                pc = (char)(opcode & 0x0FFF);
-                dontIncPC();
+                pc = nnn;
                 break;
             case 0x2000: // 0x2XXX : Call subroutine at XXX
-                stack[sp] = pc;
-                ++sp;
-                pc = (char) (opcode & 0x0FFF);
-                dontIncPC();
+                stack[sp++] = pc;
+                pc = nnn;
                 break;
-            case 0x3000: { // 0x3XNN : Skip next instruction if RX == NN
-                char register = (char)((opcode & 0x0F00) >>> 8);
-                char value = (char) (opcode & 0x00FF);
-                if (V[register] == value) {
+            case 0x3000: // 0x3XNN : Skip next instruction if RX == NN
+                if (V[x] == lo) {
                     incPC();
                 }
                 break;
-            }
-            case 0x4000: { // 0x4XNN : Skip next instruction if RX != NN
-                char register = (char) ((opcode & 0x0F00) >>> 8);
-                char value = (char) (opcode & 0x00FF);
-                if (V[register] != value) {
+            case 0x4000: // 0x4XNN : Skip next instruction if RX != NN
+                if (V[x] != lo) {
                     incPC();
                 }
                 break;
-            }
-            case 0x5000: { // 0x5XY0 : Skip next instruction if RX == RY
-                char register1 = (char) ((opcode & 0x0F00) >>> 8);
-                char register2 = (char) ((opcode & 0x00F0) >>> 4);
-                if (V[register1] == V[register2]) {
+            case 0x5000: // 0x5XY0 : Skip next instruction if RX == RY
+                // instruction only valid when n == 0
+                if (V[x] == V[y]) {
                     incPC();
                 }
                 break;
-            }
-            case 0x6000: { // 0x6XNN : Set RX to NN
-                char register = (char) ((opcode & 0x0F00) >>> 8);
-                char value = (char) (opcode & 0x00FF);
-                V[register] = value;
+            case 0x6000: // 0x6XNN : Set RX to NN
+                V[x] = lo;
                 break;
-            }
-            case 0x7000: { // 0x7XNN : Add NN to RX
-                char register = (char) ((opcode & 0x0F00) >>> 8);
-                char value = (char) (opcode & 0x00FF);
-                V[register] = (char) ((V[register] + value) & 0xFF);
+            case 0x7000:  // 0x7XNN : Add NN to RX
+                V[x] = (char) ((V[x] + lo) & 0xFF);
                 break;
-            }
             case 0x8000: { // Bitwise operations
-                char X = (char)((opcode & 0x0F00) >>> 8);
-                char Y = (char)((opcode & 0x00F0) >>> 4);
-                switch (opcode & 0x000F) {
-                    case 0x0000: { // 8XY0 : set RX to RY
-                        V[X] = V[Y];
+                switch (n) {
+                    case 0x0: // 8XY0 : set RX to RY
+                        V[x] = V[y];
+                        break;
+                    case 0x1: // 8XY1 : set RX to bitwise RX or RY
+                        V[x] |= V[y];
+                        break;
+                    case 0x2: // 8XY2 : set RX to bitwise RX and RY
+                        V[x] &= V[y];
+                        break;
+                    case 0x3: // 8XY3 : set RX to bitwise RX xor RY
+                        V[x] ^= V[y];
+                        break;
+                    case 0x4: { // 8XY4 : adds RY to RX, RF is set to 1 if overflow, 0 if not
+                        char sum = (char) (V[x] + V[y]);
+                        V[x] = (char) (sum & 0xFF);
+                        V[0xF] = (char) (sum >>> 8);
                         break;
                     }
-                    case 0x0001: { // 8XY1 : set RX to bitwise RX or RY
-                        V[X] |= V[Y];
+                    case 0x5: { // 8XY5 : sets RX to RX - RY, RF is 0 when underflow, 1 if not (when RX >= RY)
+                        char noBorrow = (char) (V[x] >= V[y] ? 1 : 0);
+                        V[x] = (char) ((V[x] - V[y]) & 0xFF);
+                        V[0xF] = noBorrow;
                         break;
                     }
-                    case 0x0002: { // 8XY2 : set RX to bitwise RX and RY
-                        V[X] &= V[Y];
+                    case 0x6: { // 8XY6 : store least significant bit of RY in RF, set RX to RY shifted right by 1
+                        char lsb = (char) (V[y] & 0x1);
+                        V[x] = (char) (V[y] >>> 1);
+                        V[0xF] = lsb;
                         break;
                     }
-                    case 0x0003: { // 8XY3 : set RX to bitwise RX xor RY
-                        V[X] ^= V[Y];
+                    case 0x7: { // 8XY7 : sets RX to RY - RX, RF is 0 when underflow, 1 if not (when RY >= RX)
+                        char noBorrow = (char) (V[y] >= V[x] ? 1 : 0);
+                        V[x]   = (char) ((V[y] - V[x]) & 0xFF);
+                        V[0xF] = noBorrow;
                         break;
                     }
-                    case 0x0004: { // 8XY4 : adds RY to RX, RF is set to 1 if overflow, 0 if not
-                        char value = (char) (V[X] + V[Y]);
-                        V[X] = (char) (value & 0xFF);
-                        V[0xF] = (char) (value >> 8);
+                    case 0xE: { // 8XYE : store most significant bit of RY in RF, shift RX to RY shifted left by 1
+                        char msb = (char) (V[y] >>> 7);
+                        V[x] = (char) ((V[y] << 1) & 0xFF);
+                        V[0xF] = msb;
                         break;
                     }
-                    case 0x0005: { // 8XY5 : sets RX to RX - RY, RF is 0 when underflow, 1 if not (when RX >= RY)
-                        char noCarry = 0;
-                        if(V[X] >= V[Y]){
-                            noCarry = 1; // no carry
-                        }
-
-                        V[X] = (char) ((V[X] - V[Y]) & 0xFF);
-                        V[0xF] = noCarry;
-
-                        break;
-                    }
-                    case 0x0006: { // 8XY6 : store least significant bit of RX in RF, shift RX to right by 1
-                        int value = V[X];
-
-                        V[X] = (char) (V[X] >>> 1);
-                        V[0xF] = (value & 0x1) == 1  ?  (char)1 :  (char)0;
-
-                        break;
-                    }
-                    case 0x0007: { // 8XY7 : sets RX to RY - RX, RF is 0 when underflow, 1 if not (when RY >= RX)
-                        char noCarry = 0;
-                        if(V[Y] >= V[X]){
-                            noCarry = 1; // no carry
-                        }
-
-                        V[X] = (char) ((V[Y] - V[X]) & 0xFF);
-
-                        V[0xF] = noCarry;
-
-                        break;
-                    }
-                    case 0x000E: { // 8XYE : store most significant bit of RX in RF, shift RX to left by 1
-
-                        char value = (char)(V[X] << 1);
-                        V[X] = (char)((byte)(value & 0xFF));
-
-                        V[0xF] = (char)((value & 0x100) >> 8);
-
-                        break;
-                    }
-
                     default:
-                        System.out.println("Invalid 8 Opcode " + Integer.toHexString(opcode & 0xFFFF));
-                        dontIncPC();
+                        System.out.println("Invalid 8 Opcode " + Integer.toHexString(opcode));
                         break;
                 }
                 break;
             }
-            case 0x9000: { // 0x9XY0 : Skip next instruction if RX != RY
-                short register1 = (short) ((opcode & 0x0F00) >>> 8);
-                short register2 = (short) ((opcode & 0x00F0) >>> 4);
-                if (V[register1] != V[register2]) {
+            case 0x9000: // 0x9XY0 : Skip next instruction if RX != RY
+                // instruction only valid when n == 0
+                if (V[x] != V[y]) {
                     incPC();
                 }
                 break;
-            }
             case 0xA000: // ANNN : set I to address NNN
-                I = (char)(opcode & 0x0FFF);
+                I = nnn;
                 break;
             case 0xB000: // BNNN : jump to address NNN + R0
-                short address = (short) (opcode & 0x0FFF);
-                pc = (char)(V[0x0] + address);
-                dontIncPC();
+                pc = (char) (V[0] + nnn);
                 break;
             case 0xC000: // CXNN : Set RX to result of bitwise NN and rand(0 to 255)
-                short register1 = (short) ((opcode & 0x0F00) >>> 8);
-                short num = (short) (opcode & 0x00FF);
-                V[register1] = (char) (num & random.nextInt(256));
+                V[x] = (char) (random.nextInt(256) & lo);
                 break;
             case 0xD000: { // DXYN : draw sprite at coordinate XY with width 8 and height N
-                short x = (short) V[(opcode & 0x0F00) >> 8];
-                short y = (short) V[(opcode & 0x00F0) >> 4];
-                short height = (short) (opcode & 0x000F);
-                short pixel;
+                char _x = V[x];
+                char _y = V[y];
+                char pixel;
 
-                V[0xF] = 0;
-                for (int yline = 0; yline < height; yline++) {
-                    pixel = (short) memory[I + yline];
-                    for(int xline = 0; xline < 8; xline++) {
-                        if((pixel & (0x80 >> xline)) != 0) {
-                            if(gfx[(((x + xline)%64) + (((y + yline)%32) * 64))] == 1) {
-                                V[0xF] = 1;
-                            }
-                            gfx[x + xline + ((y + yline) * 64)] ^= 1;
-                        }
-                    }
-                }
-
+                V[0xF]   = 0;
                 drawFlag = true;
-                break;
-            }
-            case 0xE000: { // key operations
-                switch(opcode & 0x00FF){
-                    case 0x009E: { // EX9E : Skip next instruction if key == RX
-                        short register = (short) ((opcode & 0x0F00) >> 8);
-                        if(key[V[register]] != 0){
-                            incPC();
+
+                for (int row = 0; row < n; ++row) {
+                    char ny = (char) (_y + row);
+                    if (ny >= 32) break;
+
+                    pixel = memory[I + row];
+
+                    for (int col = 0; col < 8; col++) {
+                        char nx = (char) (_x + col);
+                        if (nx >= 64) break;
+
+                        if ((pixel & (0x80 >> col)) != 0) {
+                            char pos = (char) (ny * 64 + nx);
+
+                            if (gfx[pos] == 1) V[0xF] = 1;
+
+                            gfx[pos] ^= 1;
                         }
-                        break;
                     }
-                    case 0x00A1: { // EXA1 : Skip next instruction if key != RX
-                        short register = (short) ((opcode & 0x0F00) >> 8);
-                        if(key[V[register]] == 0){
-                            incPC();
-                        }
-                        break;
-                    }
-                    default:
-                        System.out.println("Invalid E Opcode " + Integer.toHexString(opcode & 0xFFFF));
-                        dontIncPC();
-                        break;
                 }
                 break;
             }
-            case 0xF000:{
-                short register = (short) ((opcode & 0x0F00) >> 8); // Get register # from 0x0X00 (used for all below instructions0
-
-                switch (opcode & 0x00FF){
-                    case 0x0007: { // FX07 : Store delay timer in RX
-                        V[register] = delay_timer;
+            case 0xE000: // key operations
+                switch (lo) {
+                    case 0x9E: // EX9E : Skip next instruction if key == RX
+                        if(key[V[x] & 0xF] != 0) {
+                            incPC();
+                        }
                         break;
-                    }
-                    case 0x000A: { // FX0A : A key press is awaited, and then stored in RX
-                        // TODO fix? implementation
-                        boolean keyPress = false;
-                        for(int i = 0; i < 16; i++){
-                            if(key[i] != 0){
-                                V[register] = (char) i;
-                                keyPress = true;
+                    case 0xA1: // EXA1 : Skip next instruction if key != RX
+                        if(key[V[x] & 0xF] == 0) {
+                            incPC();
+                        }
+                        break;
+                    default:
+                        System.out.println("Invalid E Opcode " + Integer.toHexString(opcode));
+                        break;
+                }
+                break;
+            case 0xF000:
+                switch (lo) {
+                    case 0x07: // FX07 : Store delay timer in RX
+                        V[x] = delay_timer;
+                        break;
+                    case 0x0A: // FX0A : A key release is awaited, and then stored in RX
+                        for (int i = 0; i < 16; i++) {
+                            if (key[i] != 0) {
+                                V[x] = (char) i;
+                                return;
                             }
                         }
-                        if(!keyPress){
-                            return;
-                        }
-                        break;
-                    }
-                    case 0x0015: { // FX15 : Set delay timer to RX
-                        delay_timer = V[register];
-                        break;
-                    }
-                    case 0x0018: { // FX18 : Set sound timer to RX
-                        sound_timer = V[register];
-                        break;
-                    }
-                    case 0x001E: { // FX1E : Adds RX to I (RX flag is not changed)
-                        I = (char)(I + V[register]);
-                        break;
-                    }
-                    case 0x0029: { // FX29 : Sets I to the location of the sprite for the character in RX
-                        I = (char)((0x50) + (5 * (short)V[register]));
-                        break;
-                    }
-                    case 0x0033: { // FX33 : Stores binary coded decimal representation of RX at I, I+1, and I+2
-                        memory[I]     = (char) (V[register] / 100);
-                        memory[I + 1] = (char) ((V[register] % 100) / 10);
-                        memory[I + 2] = (char) ((V[register] % 100) % 10);
-                        break;
-                    }
-                    case 0x0055: { // FX55 : Stores from R0 - RX in memory, starting at address I. offset += 1 for each value (I itself doesn't change)
-                        System.arraycopy(V, 0, memory, I, register + 1);
-                        break;
-                    }
-                    case 0x0065: { // FX65 : Loads into R0 - RX from memory, starting at address I. offset += 1 for each value (I itself doesn't change)
-                        System.arraycopy(memory, I, V, 0, register + 1);
-                        break;
-                    }
-                    default:
-                        System.out.println("Invalid F Opcode " + Integer.toHexString(opcode & 0xFFFF));
                         dontIncPC();
+                        break;
+                    case 0x15: // FX15 : Set delay timer to RX
+                        delay_timer = V[x];
+                        break;
+                    case 0x18: // FX18 : Set sound timer to RX
+                        sound_timer = V[x];
+                        break;
+                    case 0x1E: // FX1E : Adds RX to I (RX flag is not changed)
+                        I += V[x];
+                        break;
+                    case 0x29: // FX29 : Sets I to the location of the sprite for the character in RX
+                        I = (char) (5 * (V[x] & 0xF) + 0x50);
+                        drawFlag = true;
+                        break;
+                    case 0x33: // FX33 : Stores binary coded decimal representation of RX at I, I+1, and I+2
+                        memory[I] = (char) (V[x] / 100);
+                        memory[I + 1] = (char) ((V[x] % 100) / 10);
+                        memory[I + 2] = (char) ((V[x] % 100) % 10);
+                        break;
+                    case 0x55: // FX55 : Stores from R0 - RX in memory, starting at address I. offset += 1 for each value (I itself doesn't change)
+                        System.arraycopy(V, 0, memory, I, x + 1);
+                        I += (char) (x + 1);
+                        break;
+                    case 0x65: // FX65 : Loads into R0 - RX from memory, starting at address I. offset += 1 for each value (I itself doesn't change)
+                        System.arraycopy(memory, I, V, 0, x + 1);
+                        I += (char) (x + 1);
+                        break;
+                    default:
+                        System.out.println("Invalid F Opcode " + Integer.toHexString(opcode));
                         break;
                 }
                 break;
-            }
             default:
-                System.out.println("Invalid Opcode " + Integer.toHexString(opcode & 0xFFFF));
-                dontIncPC();;
+                System.out.println("Invalid Opcode " + Integer.toHexString(opcode));
                 break;
         }
+    }
 
-        incPC();
+    // Update timers
+    void updateTimers(){
 
-        // Execute Opcode
-
-        // Update timers
-
-        if(delay_timer > 0){
+        if (delay_timer > 0) {
             --delay_timer;
         }
 
-        if(sound_timer > 0){
-            if(sound_timer == 1){
-                System.out.println("BEEP!");
-            }
+        if (sound_timer > 0) {
             --sound_timer;
+            System.out.println("BEEP!");
         }
     }
 
@@ -421,12 +377,12 @@ public class Chip8 {
         }
     }
 
-    public char[] getGfx(){
+    public byte[] getGfx(){
         return gfx;
     }
 
-    public void setKeys(){
-
+    public void setKeys(char[] keys){
+        this.key = keys;
     }
 
     public void printMem(){
@@ -464,7 +420,7 @@ public class Chip8 {
         for(int y = 0; y < 32; y++){
             StringBuilder line = new StringBuilder();
             for(int x = 0; x < 64; x++){
-                    char pixel = gfx[x + (y * 64)];
+                    char pixel = (char) gfx[x + (y * 64)];
                     pixel = (short)pixel == 0 ? '░' : '█';
                 line.append(pixel).append(pixel);
             }
