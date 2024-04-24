@@ -11,7 +11,9 @@ import java.util.Random;
 public class Chip8 implements Serializable {
 
     Random random;
+    EmulationMode emulationMode;
     boolean emulate = true;
+    boolean beep = false;
 
     boolean drawFlag;
 
@@ -42,6 +44,8 @@ public class Chip8 implements Serializable {
 
 
     public Chip8(){
+        emulationMode = EmulationMode.chip8;
+
         random = new Random();
         memory = new char[4096];
         V = new char[16];
@@ -118,12 +122,14 @@ public class Chip8 implements Serializable {
         sound_timer = 0;
 
         drawFlag = true;
+        beep = false;
         //memory[0x1FF] = 0x1;
     }
 
     void emulateCycle(){
 
         if(!emulate){
+            beep = false;
             return;
         }
 
@@ -318,7 +324,10 @@ public class Chip8 implements Serializable {
                         delay_timer = V[x];
                         break;
                     case 0x18: // FX18 : Set sound timer to RX
-                        sound_timer = V[x];
+
+                        // it shouldn't by multiplied by 2 but this is the only way that sound works properly until i fix this
+                        // TODO : FIX THIS
+                        sound_timer = (char)(V[x]*2);
                         break;
                     case 0x1E: // FX1E : Adds RX to I (RX flag is not changed)
                         I += V[x];
@@ -359,8 +368,12 @@ public class Chip8 implements Serializable {
         }
 
         if (sound_timer > 0) {
+            beep = true;
             --sound_timer;
-            System.out.println("BEEP!");
+            //System.out.println("beep");
+        }
+        else{
+            beep = false;
         }
     }
 
@@ -443,5 +456,10 @@ public class Chip8 implements Serializable {
 
     }
 
-
+    // enum for emulation mode
+    public enum EmulationMode {
+        chip8,
+        superchip8
+    }
 }
+
