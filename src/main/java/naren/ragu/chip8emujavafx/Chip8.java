@@ -5,6 +5,7 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.Random;
 
@@ -27,7 +28,7 @@ public class Chip8 implements Serializable {
     char pc; // program counter
 
     // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
-    // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
+    // 0x050-0x0A0 - Used for the built-in 4x5 pixel font set (0-F)
     // 0x200-0xFFF - Program ROM and work RAM
 
     byte[] gfx;
@@ -93,29 +94,19 @@ public class Chip8 implements Serializable {
 
         // Clear display
         //gfx = new byte[64 * 32];
-        for(int i = 0 ; i < gfx.length ; i++){
-            gfx[i] = 0;
-        }
+        Arrays.fill(gfx, (byte) 0);
         // Clear stack
         //stack = new char[16];
-        for(int i = 0 ; i < stack.length ; i++){
-            stack[i] = 0;
-        }
+        Arrays.fill(stack, (char) 0);
         // Clear registers V0-VF
         //V = new char[16];
-        for(int i = 0 ; i < V.length ; i++){
-            V[i] = 0;
-        }
+        Arrays.fill(V, (char) 0);
         // Clear memory
         //memory = new char[4096];
-        for(int i = 0 ; i < memory.length ; i++){
-            memory[i] = 0;
-        }
+        Arrays.fill(memory, (char) 0);
 
         // Load fontset
-        for(int i = 0; i < 80; ++i){
-            memory[i + 0x50] = fontset[i];
-        }
+        System.arraycopy(fontset, 0, memory, 80, 80);
 
         // Reset timers
         delay_timer = 0;
@@ -149,9 +140,7 @@ public class Chip8 implements Serializable {
             case 0x0000:
                 switch (nnn) {
                     case 0x0E0: // 0x00E0 : Clear screen
-                        for(int i = 0 ; i < gfx.length ; i++){
-                            gfx[i] = 0;
-                        }
+                        Arrays.fill(gfx, (byte) 0);
                         drawFlag = true;
                         break;
                     case 0x0EE: // 0x00EE : Return from subroutine
@@ -209,7 +198,7 @@ public class Chip8 implements Serializable {
                     case 0x3: // 8XY3 : set RX to bitwise RX xor RY
                         V[x] ^= V[y];
                         break;
-                    case 0x4: { // 8XY4 : adds RY to RX, RF is set to 1 if overflow, 0 if not
+                    case 0x4: { // 8XY4 : adds RY to RX, RF is set to 1 if overflowed, 0 if not
                         char sum = (char) (V[x] + V[y]);
                         V[x] = (char) (sum & 0xFF);
                         V[0xF] = (char) (sum >>> 8);

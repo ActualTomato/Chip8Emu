@@ -1,8 +1,6 @@
 package naren.ragu.chip8emujavafx;
 
-
 import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
@@ -12,16 +10,12 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.*;
 
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import javafx.util.Duration;
@@ -30,7 +24,6 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.PixelFormat;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.paint.Color;
 import javafx.scene.control.Label;
@@ -56,7 +49,6 @@ public class Emulator extends Application {
     private Label pauseLabel;
     private VBox root;
     PixelWriter pixelWriter;
-    PixelFormat<ByteBuffer> pixelFormat;
 
     private Stage settingsWindow;
 
@@ -103,9 +95,9 @@ public class Emulator extends Application {
 
     void setupPrefs(){
         prefs = Preferences.userRoot().node(this.getClass().getName());
-        Preferences controlsNode = prefs.node("controls");
-        Preferences emulationNode = prefs.node("emulation");
-        Preferences soundNode = prefs.node("sound");
+        prefs.node("controls");
+        prefs.node("emulation");
+        prefs.node("sound");
 
         try {
             prefs.flush();
@@ -237,13 +229,10 @@ public class Emulator extends Application {
             ComboBox<KeyCode> keySelect = new ComboBox<>();
             keySelect.setValue(keybindings.get(i));
 
-            keySelect.setOnAction(new EventHandler<ActionEvent>(){
-                @Override
-                public void handle(ActionEvent actionEvent) {
-                    //System.out.printf("%s binding set to %s!\n", keyNames.get(j), keySelect.getValue().toString());
-                    keybindings.set(j, keySelect.getValue());
-                    controlsNode.put("key" + keyNames.get(j), keySelect.getValue().toString());
-                }
+            keySelect.setOnAction(actionEvent -> {
+                //System.out.printf("%s binding set to %s!\n", keyNames.get(j), keySelect.getValue().toString());
+                keybindings.set(j, keySelect.getValue());
+                controlsNode.put("key" + keyNames.get(j), keySelect.getValue().toString());
             });
 
             hbox.getChildren().addAll(label, keySelect);
@@ -270,14 +259,11 @@ public class Emulator extends Application {
         ComboBox<Chip8.EmulationMode> emulationModeSelect = new ComboBox<>();
         emulationModeSelect.setValue(chip8.emulationMode);
         emulationModeSelect.getItems().setAll(Chip8.EmulationMode.values());
-        emulationModeSelect.setOnAction(new EventHandler<ActionEvent>(){
-                @Override
-                public void handle(ActionEvent actionEvent) {
-                    chip8.emulationMode = emulationModeSelect.getValue();
-                    emulationNode.put("mode", emulationModeSelect.getValue().toString());
-                    gameTimeline.stop();
-                    runEmu();
-                }
+        emulationModeSelect.setOnAction(actionEvent -> {
+            chip8.emulationMode = emulationModeSelect.getValue();
+            emulationNode.put("mode", emulationModeSelect.getValue().toString());
+            gameTimeline.stop();
+            runEmu();
         });
 
         emulationMode.getChildren().addAll(emulationModeLabel, emulationModeSelect);
@@ -294,30 +280,19 @@ public class Emulator extends Application {
 
         Label speedSettingValue = new Label(String.format("    %.2fx", speedSlider.getValue()));
 
-        speedSlider.setOnMouseReleased(new EventHandler<MouseEvent>(){
-            @Override
-            public void handle(MouseEvent dragEvent) {
-                //System.out.printf("Set speed to %s\n", speedSlider.getValue());
-                gameTimeline.setRate(speedSlider.getValue());
-                emulationNode.putDouble("speedMultiplier", speedSlider.getValue());
-            }
+        speedSlider.setOnMouseReleased(dragEvent -> {
+            //System.out.printf("Set speed to %s\n", speedSlider.getValue());
+            gameTimeline.setRate(speedSlider.getValue());
+            emulationNode.putDouble("speedMultiplier", speedSlider.getValue());
         });
-        speedSlider.setOnMouseDragged(new EventHandler<MouseEvent>(){
-            @Override
-            public void handle(MouseEvent mouseEvent) {
-                speedSettingValue.setText(String.format("    %.2fx", speedSlider.getValue()));
-            }
-        });
+        speedSlider.setOnMouseDragged(mouseEvent -> speedSettingValue.setText(String.format("    %.2fx", speedSlider.getValue())));
 
         Button speedSettingsResetButton = new Button("Reset multiplier");
-        speedSettingsResetButton.setOnAction(new EventHandler<ActionEvent>(){
-            @Override
-            public void handle(ActionEvent actionEvent) {
-                gameTimeline.setRate(1f);
-                speedSlider.setValue(1f);
-                speedSettingValue.setText(String.format("    %.2fx", 1f));
-                emulationNode.putDouble("speedMultiplier", speedSlider.getValue());
-            }
+        speedSettingsResetButton.setOnAction(actionEvent -> {
+            gameTimeline.setRate(1f);
+            speedSlider.setValue(1f);
+            speedSettingValue.setText(String.format("    %.2fx", 1f));
+            emulationNode.putDouble("speedMultiplier", speedSlider.getValue());
         });
 
         speedSettingVerticalBox.setAlignment(Pos.CENTER);
@@ -374,7 +349,7 @@ public class Emulator extends Application {
         colorPickerElements.getChildren().addAll(foregroundColorPickerElements, backgroundColorPickerElements);
 
 
-        // TODO: ADD ABILITY TO CHANGE SCREEN SIZE MULTIPLIER
+        // SCREEN SIZE MULTIPLIER
 
         HBox screenSizeElements = new HBox();
         screenSizeElements.setPadding(verticalPadding);
@@ -392,9 +367,7 @@ public class Emulator extends Application {
         }
         screenSizeMultiplier.setValue(emulationNode.getInt("screenSizeMultiplier", 8));
 
-        screenSizeMultiplier.setOnAction(actionEvent -> {
-            emulationNode.putInt("screenSizeMultiplier", screenSizeMultiplier.getValue());
-        });
+        screenSizeMultiplier.setOnAction(actionEvent -> emulationNode.putInt("screenSizeMultiplier", screenSizeMultiplier.getValue()));
 
         screenSizeElements.getChildren().addAll(screenSizeLabel, screenSizeMultiplier);
 
@@ -419,29 +392,18 @@ public class Emulator extends Application {
 
         Label volumeValue = new Label(String.format("%s%%", volumeSlider.getValue()));
 
-        volumeSlider.setOnMouseReleased(new EventHandler<MouseEvent>(){
-            @Override
-            public void handle(MouseEvent dragEvent) {
-                sound.setVolume((int) volumeSlider.getValue());
-                soundNode.putInt("volume", (int)volumeSlider.getValue());
-            }
+        volumeSlider.setOnMouseReleased(dragEvent -> {
+            sound.setVolume((int) volumeSlider.getValue());
+            soundNode.putInt("volume", (int)volumeSlider.getValue());
         });
-        volumeSlider.setOnMouseDragged(new EventHandler<MouseEvent>(){
-            @Override
-            public void handle(MouseEvent mouseEvent) {
-                volumeValue.setText(String.format("%s%%", (int)volumeSlider.getValue()));
-            }
-        });
+        volumeSlider.setOnMouseDragged(mouseEvent -> volumeValue.setText(String.format("%s%%", (int)volumeSlider.getValue())));
 
         Button volumeResetButton = new Button("Reset volume");
-        volumeResetButton.setOnAction(new EventHandler<ActionEvent>(){
-            @Override
-            public void handle(ActionEvent actionEvent) {
-                sound.setVolume(50);
-                volumeSlider.setValue(50);
-                volumeValue.setText(String.format("%s%%", 50));
-                soundNode.putInt("volume", (int)volumeSlider.getValue());
-            }
+        volumeResetButton.setOnAction(actionEvent -> {
+            sound.setVolume(50);
+            volumeSlider.setValue(50);
+            volumeValue.setText(String.format("%s%%", 50));
+            soundNode.putInt("volume", (int)volumeSlider.getValue());
         });
 
         soundVolumeHbox.getChildren().addAll(volumeSettingLabel, volumeSlider, volumeValue);
@@ -463,47 +425,38 @@ public class Emulator extends Application {
 
         HBox bottomButtons = new HBox();
         Button saveButton = new Button("Save");
-        saveButton.setOnAction(new EventHandler<ActionEvent>(){
-            @Override
-            public void handle(ActionEvent actionEvent) {
-                try {
-                    prefs.flush();
-                } catch (BackingStoreException e) {
-                    throw new RuntimeException(e);
-                }
-
-                settingsWindow.close();
+        saveButton.setOnAction(actionEvent -> {
+            try {
+                prefs.flush();
+            } catch (BackingStoreException e) {
+                throw new RuntimeException(e);
             }
+
+            settingsWindow.close();
         });
-        settingsWindow.setOnCloseRequest(new EventHandler<WindowEvent>() {
-            @Override
-            public void handle(WindowEvent windowEvent) {
-                try {
-                    prefs.flush();
-                } catch (BackingStoreException e) {
-                    throw new RuntimeException(e);
-                }
+        settingsWindow.setOnCloseRequest(windowEvent -> {
+            try {
+                prefs.flush();
+            } catch (BackingStoreException e) {
+                throw new RuntimeException(e);
             }
         });
 
         Button resetButton = new Button("Reset to Defaults");
-        resetButton.setOnAction(new EventHandler<ActionEvent>(){
-            @Override
-            public void handle(ActionEvent actionEvent) {
-                try {
-                    prefs.clear();
-                    controlsNode.clear();
-                    emulationNode.clear();
-                    soundNode.clear();
+        resetButton.setOnAction(actionEvent -> {
+            try {
+                prefs.clear();
+                controlsNode.clear();
+                emulationNode.clear();
+                soundNode.clear();
 
-                    loadPrefs();
-                    settingsWindow.close();
-                    createSettingsMenu(parentStage);
-                } catch (BackingStoreException e) {
-                    throw new RuntimeException(e);
-                }
-
+                loadPrefs();
+                settingsWindow.close();
+                createSettingsMenu(parentStage);
+            } catch (BackingStoreException e) {
+                throw new RuntimeException(e);
             }
+
         });
 
         bottomButtons.getChildren().addAll(saveButton, resetButton);
@@ -524,85 +477,71 @@ public class Emulator extends Application {
         // File menu
         Menu fileMenu = new Menu("File");
         MenuItem fileLoad = new MenuItem("Load Rom...");
-        fileLoad.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent event){
-                FileChooser fileChooser = new FileChooser();
-                FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 ROM files (*.ch8, *.rom)", "*.ch8", "*.rom");
-                fileChooser.getExtensionFilters().add(extensionFilter);
-                fileChooser.setTitle("Select a ROM file...");
-                boolean prev = chip8.emulate;
-                chip8.emulate = false;
-                romFile = fileChooser.showOpenDialog(primaryStage);
-                if(romFile == null){
-                    chip8.emulate = prev;
-                    return;
-                }
-                if(romFile.getName().endsWith(".rom")  || romFile.getName().endsWith(".ch8")){
-                    chip8.emulate = true;
-                    gameTimeline.stop();
-                    runEmu();
-                }
-
+        fileLoad.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 ROM files (*.ch8, *.rom)", "*.ch8", "*.rom");
+            fileChooser.getExtensionFilters().add(extensionFilter);
+            fileChooser.setTitle("Select a ROM file...");
+            boolean prev = chip8.emulate;
+            chip8.emulate = false;
+            romFile = fileChooser.showOpenDialog(primaryStage);
+            if(romFile == null){
+                chip8.emulate = prev;
+                return;
             }
+            if(romFile.getName().endsWith(".rom")  || romFile.getName().endsWith(".ch8")){
+                chip8.emulate = true;
+                gameTimeline.stop();
+                runEmu();
+            }
+
         });
         MenuItem fileExit = new MenuItem("Exit");
-        fileExit.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent event){
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Exit");
-                alert.setContentText("Are you sure you want to exit?");
-                boolean prev = chip8.emulate;
-                chip8.emulate = false;
-                Optional<ButtonType> result = alert.showAndWait();
-                if(result.get() == ButtonType.OK){
-                    primaryStage.close();
-                    System.exit(0);
-                }
-                chip8.emulate = prev;
+        fileExit.setOnAction(event -> {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Exit");
+            alert.setContentText("Are you sure you want to exit?");
+            boolean prev = chip8.emulate;
+            chip8.emulate = false;
+            Optional<ButtonType> result = alert.showAndWait();
+            if(result.get() == ButtonType.OK){
+                primaryStage.close();
+                System.exit(0);
             }
+            chip8.emulate = prev;
         });
 
         // Emulation menu
         Menu controlsMenu = new Menu("Emulation");
 
         MenuItem controlsTogglePlay = new MenuItem("Pause/Play");
-        controlsTogglePlay.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent event){
-                chip8.emulate = !chip8.emulate;
-            }
-        });
+        controlsTogglePlay.setOnAction(event -> chip8.emulate = !chip8.emulate);
         MenuItem controlsSaveState = new MenuItem("Save State");
-        controlsSaveState.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent event){
-                FileChooser fileChooser = new FileChooser();
-                FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 Save State", "*.chip8state");
-                fileChooser.getExtensionFilters().add(extensionFilter);
-                File path = fileChooser.showSaveDialog(primaryStage);
-                if(path == null) return;
-                saveState(path.getPath());
-            }
+        controlsSaveState.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 Save State", "*.chip8state");
+            fileChooser.getExtensionFilters().add(extensionFilter);
+            File path = fileChooser.showSaveDialog(primaryStage);
+            if(path == null) return;
+            saveState(path.getPath());
         });
         MenuItem controlsLoadState = new MenuItem("Load State");
-        controlsLoadState.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent event){
-                FileChooser fileChooser = new FileChooser();
-                FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 Save State", "*.chip8state");
-                fileChooser.getExtensionFilters().add(extensionFilter);
-                File path = fileChooser.showOpenDialog(primaryStage);
-                if(path == null) return;
-                loadState(path.getPath());
-            }
+        controlsLoadState.setOnAction(event -> {
+            FileChooser fileChooser = new FileChooser();
+            FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 Save State", "*.chip8state");
+            fileChooser.getExtensionFilters().add(extensionFilter);
+            File path = fileChooser.showOpenDialog(primaryStage);
+            if(path == null) return;
+            loadState(path.getPath());
         });
         MenuItem controlsChangeSettings = new MenuItem("Settings");
-        controlsChangeSettings.setOnAction(new EventHandler<ActionEvent>() {
-            public void handle(ActionEvent event){
-                boolean prev = chip8.emulate;
-                chip8.emulate = false;
+        controlsChangeSettings.setOnAction(event -> {
+            boolean prev = chip8.emulate;
+            chip8.emulate = false;
 
-                settingsWindow.showAndWait();
+            settingsWindow.showAndWait();
 
-                chip8.emulate = prev;
-            }
+            chip8.emulate = prev;
         });
 
         // add options to submenus
@@ -718,14 +657,14 @@ public class Emulator extends Application {
         chip8.loadGame(romFile.getAbsolutePath());
 
         //KeyFrame kf =
-        gameTimeline.getKeyFrames().addAll(getEmulationKeyFrame(2.5));
+        gameTimeline.getKeyFrames().addAll(getEmulationKeyFrame());
         gameTimeline.play();
     }
 
-    KeyFrame getEmulationKeyFrame(double duration){
-        return new KeyFrame(Duration.millis(duration), (actionEvent) -> {
+    KeyFrame getEmulationKeyFrame(){
+        return new KeyFrame(Duration.millis(2.5), (actionEvent) -> {
             if(chip8.emulate) {
-                if(!pauseLabel.getText().equals("")){
+                if(!pauseLabel.getText().isEmpty()){
                     pauseLabel.setText("");
                 }
 
