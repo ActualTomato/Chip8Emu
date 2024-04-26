@@ -48,6 +48,8 @@ public class Chip8 implements Serializable {
         quirks.put("memoryIncrementByX", false);
         quirks.put("memoryLeaveIUnchanged", false);
         quirks.put("jump", false);
+        quirks.put("wrap", false);
+        quirks.put("vfreset", false);
 
 
         random = new Random();
@@ -194,11 +196,14 @@ public class Chip8 implements Serializable {
                         break;
                     case 0x1: // 8XY1 : set RX to bitwise RX or RY
                         V[x] |= V[y];
+                        if(quirks.get("vfreset")) V[0xF] = 0;
                         break;
                     case 0x2: // 8XY2 : set RX to bitwise RX and RY
+                        if(quirks.get("vfreset")) V[0xF] = 0;
                         V[x] &= V[y];
                         break;
                     case 0x3: // 8XY3 : set RX to bitwise RX xor RY
+                        if(quirks.get("vfreset")) V[0xF] = 0;
                         V[x] ^= V[y];
                         break;
                     case 0x4: { // 8XY4 : adds RY to RX, RF is set to 1 if overflowed, 0 if not
@@ -284,13 +289,15 @@ public class Chip8 implements Serializable {
 
                 for (int row = 0; row < n; ++row) {
                     char ny = (char) (_y + row);
-                    if (ny >= 32) break;
+                    if (ny >= 32 && !quirks.get("wrap")) break;
+                    ny = (char) (ny % 32);
 
                     pixel = memory[I + row];
 
                     for (int col = 0; col < 8; col++) {
                         char nx = (char) (_x + col);
-                        if (nx >= 64) break;
+                        if (nx >= 64 && !quirks.get("wrap")) break;
+                        nx = (char) (nx % 64);
 
                         if ((pixel & (0x80 >> col)) != 0) {
                             char pos = (char) (ny * 64 + nx);

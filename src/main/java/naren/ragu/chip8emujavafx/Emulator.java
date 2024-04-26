@@ -125,10 +125,15 @@ public class Emulator extends Application {
         boolean memoryIncrementByX = emulationNode.getBoolean("memoryIncrementByX", false);
         boolean memoryLeaveIUnchanged = emulationNode.getBoolean("memoryLeaveIUnchanged", false);
         boolean jump = emulationNode.getBoolean("jump", false);
+        boolean wrap = emulationNode.getBoolean("wrap", false);
+        boolean vfreset = emulationNode.getBoolean("vfreset", false);
         chip8.quirks.put("shift", shift);
         chip8.quirks.put("memoryIncrementByX", memoryIncrementByX);
         chip8.quirks.put("memoryLeaveIUnchanged", memoryLeaveIUnchanged);
         chip8.quirks.put("jump", jump);
+        chip8.quirks.put("wrap", wrap);
+        chip8.quirks.put("vfreset", vfreset);
+
 
         // load emulation speed
         //emulationNode.putDouble("speedMultiplier", 1);
@@ -270,7 +275,7 @@ public class Emulator extends Application {
         emulationQuirks.setPadding(verticalPadding);
         emulationQuirks.setAlignment(Pos.CENTER_LEFT);
 
-        Label emulationQuirksHeader = new Label("Emulation Quirks:");
+        Label emulationQuirksHeader = new Label("Emulation Quirks (requires reload!):");
 
 
         HBox shiftQuirk = new HBox();
@@ -332,7 +337,43 @@ public class Emulator extends Application {
             runEmu();
         });
 
-        emulationQuirks.getChildren().addAll(emulationQuirksHeader, shiftQuirk, memoryIncrementQuirk, unchangedIQuirk, jumpQuirk);
+        HBox wrapQuirk = new HBox();
+        wrapQuirk.setAlignment(Pos.CENTER_RIGHT);
+        wrapQuirk.setPadding(verticalPadding);
+        Label wrapQuirkLabel = new Label("Wrap:   ");
+        CheckBox wrapQuirkCheckbox = new CheckBox();
+        wrapQuirkCheckbox.setSelected(chip8.quirks.get("wrap"));
+        wrapQuirk.getChildren().addAll(wrapQuirkLabel, wrapQuirkCheckbox);
+
+        wrapQuirkCheckbox.setOnAction((actionEvent) -> {
+            emulationNode.putBoolean("wrap", wrapQuirkCheckbox.isSelected());
+            chip8.quirks.put("wrap", wrapQuirkCheckbox.isSelected());
+            gameTimeline.stop();
+            runEmu();
+        });
+
+        HBox vfResetQuirk = new HBox();
+        vfResetQuirk.setAlignment(Pos.CENTER_RIGHT);
+        vfResetQuirk.setPadding(verticalPadding);
+        Label vfResetQuirkLabel = new Label("Math VF Reset:   ");
+        CheckBox vfResetQuirkCheckbox = new CheckBox();
+        vfResetQuirkCheckbox.setSelected(chip8.quirks.get("vfreset"));
+        vfResetQuirk.getChildren().addAll(vfResetQuirkLabel, vfResetQuirkCheckbox);
+
+        vfResetQuirkCheckbox.setOnAction((actionEvent) -> {
+            emulationNode.putBoolean("vfreset", vfResetQuirkCheckbox.isSelected());
+            chip8.quirks.put("vfreset", vfResetQuirkCheckbox.isSelected());
+            gameTimeline.stop();
+            runEmu();
+        });
+
+        emulationQuirks.getChildren().addAll(emulationQuirksHeader,
+                shiftQuirk,
+                memoryIncrementQuirk,
+                unchangedIQuirk,
+                jumpQuirk,
+                wrapQuirk,
+                vfResetQuirk);
 
 
         HBox ipfSelector = new HBox();
@@ -374,6 +415,7 @@ public class Emulator extends Application {
             //System.out.printf("Set speed to %s\n", speedSlider.getValue());
             gameTimeline.setRate(speedSlider.getValue());
             emulationNode.putDouble("speedMultiplier", speedSlider.getValue());
+            speedSettingValue.setText(String.format("    %.2fx", speedSlider.getValue()));
         });
         speedSlider.setOnMouseDragged(mouseEvent -> speedSettingValue.setText(String.format("    %.2fx", speedSlider.getValue())));
 
@@ -485,6 +527,7 @@ public class Emulator extends Application {
         volumeSlider.setOnMouseReleased(dragEvent -> {
             sound.setVolume((int) volumeSlider.getValue());
             soundNode.putInt("volume", (int)volumeSlider.getValue());
+            volumeValue.setText(String.format("%s%%", (int)volumeSlider.getValue()));
         });
         volumeSlider.setOnMouseDragged(mouseEvent -> volumeValue.setText(String.format("%s%%", (int)volumeSlider.getValue())));
 
@@ -543,6 +586,10 @@ public class Emulator extends Application {
                 loadPrefs();
                 settingsWindow.close();
                 createSettingsMenu(parentStage);
+
+                gameTimeline.stop();
+                runEmu();
+
             } catch (BackingStoreException e) {
                 throw new RuntimeException(e);
             }
@@ -608,21 +655,33 @@ public class Emulator extends Application {
         controlsTogglePlay.setOnAction(event -> chip8.emulate = !chip8.emulate);
         MenuItem controlsSaveState = new MenuItem("Save State");
         controlsSaveState.setOnAction(event -> {
+            boolean prev = chip8.emulate;
+            chip8.emulate = false;
             FileChooser fileChooser = new FileChooser();
             FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 Save State", "*.chip8state");
             fileChooser.getExtensionFilters().add(extensionFilter);
             File path = fileChooser.showSaveDialog(primaryStage);
-            if(path == null) return;
+            if(path == null){
+                chip8.emulate = prev;
+                return;
+            }
             saveState(path.getPath());
+            chip8.emulate = prev;
         });
         MenuItem controlsLoadState = new MenuItem("Load State");
         controlsLoadState.setOnAction(event -> {
+            boolean prev = chip8.emulate;
+            chip8.emulate = false;
             FileChooser fileChooser = new FileChooser();
             FileChooser.ExtensionFilter extensionFilter = new FileChooser.ExtensionFilter("Chip8 Save State", "*.chip8state");
             fileChooser.getExtensionFilters().add(extensionFilter);
             File path = fileChooser.showOpenDialog(primaryStage);
-            if(path == null) return;
+            if(path == null) {
+                chip8.emulate = prev;
+                return;
+            }
             loadState(path.getPath());
+            chip8.emulate = prev;
         });
         MenuItem controlsChangeSettings = new MenuItem("Settings");
         controlsChangeSettings.setOnAction(event -> {
@@ -645,7 +704,6 @@ public class Emulator extends Application {
     }
 
     void saveState(String path){
-        chip8.emulate = false;
         try {
             FileOutputStream file = new FileOutputStream(path);
             ObjectOutputStream out = new ObjectOutputStream(file);
@@ -659,11 +717,10 @@ public class Emulator extends Application {
         {
             System.out.println("IOException caught when saving state!");
         }
-        chip8.emulate = true;
+
     }
 
     void loadState(String path){
-        chip8.emulate = false;
         try
         {
             // Read object from file
@@ -684,7 +741,6 @@ public class Emulator extends Application {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
-        chip8.emulate = true;
     }
 
     void setupInput(Stage primaryStage){
@@ -794,6 +850,7 @@ public class Emulator extends Application {
             }
             else{
                 pauseLabel.setText("Paused");
+                sound.stopSound();
             }
         });
     }
