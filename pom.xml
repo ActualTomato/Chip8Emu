@@ -60,7 +60,7 @@
                         <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>naren.ragu.chip8emujavafx/naren.ragu.chip8emujavafx.HelloApplication</mainClass>
+                            <mainClass>naren.ragu.chip8emujavafx/naren.ragu.chip8emujavafx.Emulator</mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>
                             <jlinkImageName>app</jlinkImageName>

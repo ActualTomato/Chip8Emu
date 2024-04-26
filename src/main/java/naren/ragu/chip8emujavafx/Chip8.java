@@ -5,14 +5,12 @@ import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HexFormat;
-import java.util.Random;
+import java.util.*;
 
 public class Chip8 implements Serializable {
 
     Random random;
-    EmulationMode emulationMode;
+    Dictionary<String, Boolean> quirks = new Hashtable<>();
     boolean emulate = true;
     boolean beep = false;
 
@@ -45,7 +43,12 @@ public class Chip8 implements Serializable {
 
 
     public Chip8(){
-        emulationMode = EmulationMode.chip8;
+        // Initialize quirks dictionary
+        quirks.put("shift", false);
+        quirks.put("memoryIncrementByX", false);
+        quirks.put("memoryLeaveIUnchanged", false);
+        quirks.put("jump", false);
+
 
         random = new Random();
         memory = new char[4096];
@@ -211,9 +214,17 @@ public class Chip8 implements Serializable {
                         break;
                     }
                     case 0x6: { // 8XY6 : store least significant bit of RY in RF, set RX to RY shifted right by 1
-                        char lsb = (char) (V[y] & 0x1);
-                        V[x] = (char) (V[y] >>> 1);
-                        V[0xF] = lsb;
+                        Boolean shift = quirks.get("shift");
+                        if (shift == false) {
+                            char lsb = (char) (V[y] & 0x1);
+                            V[x] = (char) (V[y] >>> 1);
+                            V[0xF] = lsb;
+                        }
+                        else {
+                            char lsb = (char) (V[x] & 0x1);
+                            V[x] = (char) (V[x] >>> 1);
+                            V[0xF] = lsb;
+                        }
                         break;
                     }
                     case 0x7: { // 8XY7 : sets RX to RY - RX, RF is 0 when underflow, 1 if not (when RY >= RX)
@@ -223,9 +234,17 @@ public class Chip8 implements Serializable {
                         break;
                     }
                     case 0xE: { // 8XYE : store most significant bit of RY in RF, shift RX to RY shifted left by 1
-                        char msb = (char) (V[y] >>> 7);
-                        V[x] = (char) ((V[y] << 1) & 0xFF);
-                        V[0xF] = msb;
+                        Boolean shift = quirks.get("shift");
+                        if (shift == false) {
+                            char msb = (char) (V[y] >>> 7);
+                            V[x] = (char) ((V[y] << 1) & 0xFF);
+                            V[0xF] = msb;
+                        }
+                        else{
+                            char msb = (char) (V[x] >>> 7);
+                            V[x] = (char) ((V[x] << 1) & 0xFF);
+                            V[0xF] = msb;
+                        }
                         break;
                     }
                     default:
@@ -244,7 +263,13 @@ public class Chip8 implements Serializable {
                 I = nnn;
                 break;
             case 0xB000: // BNNN : jump to address NNN + R0
-                pc = (char) (V[0] + nnn);
+                Boolean jumpQuirk = quirks.get("jump");
+                if(jumpQuirk){
+                    pc = (char) (V[x] + nnn);
+                }
+                else{
+                    pc = (char) (V[0] + nnn);
+                }
                 break;
             case 0xC000: // CXNN : Set RX to result of bitwise NN and rand(0 to 255)
                 V[x] = (char) (random.nextInt(256) & lo);
@@ -311,12 +336,13 @@ public class Chip8 implements Serializable {
                         break;
                     case 0x15: // FX15 : Set delay timer to RX
                         delay_timer = V[x];
+                        //System.out.println("Set delay timer to " + (int)delay_timer);
                         break;
                     case 0x18: // FX18 : Set sound timer to RX
 
                         // it shouldn't by multiplied by 2 but this is the only way that sound works properly until i fix this
                         // TODO : FIX THIS
-                        sound_timer = (char)(V[x]*2);
+                        sound_timer = (char)(V[x]);
                         break;
                     case 0x1E: // FX1E : Adds RX to I (RX flag is not changed)
                         I += V[x];
@@ -330,14 +356,35 @@ public class Chip8 implements Serializable {
                         memory[I + 1] = (char) ((V[x] % 100) / 10);
                         memory[I + 2] = (char) ((V[x] % 100) % 10);
                         break;
-                    case 0x55: // FX55 : Stores from R0 - RX in memory, starting at address I. offset += 1 for each value (I itself doesn't change)
+                    case 0x55: { // FX55 : Stores from R0 - RX in memory, starting at address I. offset += 1 for each value (I itself doesn't change)
                         System.arraycopy(V, 0, memory, I, x + 1);
-                        I += (char) (x + 1);
+                        Boolean loadStoreQuirkX = quirks.get("memoryIncrementByX");
+                        Boolean loadStoreQuirkI = quirks.get("memoryLeaveIUnchanged");
+
+                        if(!loadStoreQuirkI){
+                            if (loadStoreQuirkX) {
+                                I += x;
+                            } else {
+                                I += (char) (x + 1);
+                            }
+                        }
+
                         break;
-                    case 0x65: // FX65 : Loads into R0 - RX from memory, starting at address I. offset += 1 for each value (I itself doesn't change)
+                    }
+                    case 0x65: { // FX65 : Loads into R0 - RX from memory, starting at address I. offset += 1 for each value (I itself doesn't change)
                         System.arraycopy(memory, I, V, 0, x + 1);
-                        I += (char) (x + 1);
+                        Boolean loadStoreQuirkX = quirks.get("memoryIncrementByX");
+                        Boolean loadStoreQuirkI = quirks.get("memoryLeaveIUnchanged");
+
+                        if(!loadStoreQuirkI){
+                            if (loadStoreQuirkX) {
+                                I += x;
+                            } else {
+                                I += (char) (x + 1);
+                            }
+                        }
                         break;
+                    }
                     default:
                         System.out.println("Invalid F Opcode " + Integer.toHexString(opcode));
                         break;
@@ -443,12 +490,6 @@ public class Chip8 implements Serializable {
             chip8.printDisplay();
         }
 
-    }
-
-    // enum for emulation mode
-    public enum EmulationMode {
-        chip8,
-        superchip8
     }
 }
 

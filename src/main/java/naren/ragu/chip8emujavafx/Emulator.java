@@ -34,6 +34,9 @@ import java.util.prefs.Preferences;
 
 public class Emulator extends Application {
 
+    private int instructionsPerFrame = 8;
+    private int frameCount = 0;
+
     private Preferences prefs;
     private Sound sound;
 
@@ -118,10 +121,21 @@ public class Emulator extends Application {
         }
 
         // load emulation mode
-        chip8.emulationMode = Chip8.EmulationMode.valueOf(emulationNode.get("mode", "chip8"));
+        boolean shift = emulationNode.getBoolean("shift", false);
+        boolean memoryIncrementByX = emulationNode.getBoolean("memoryIncrementByX", false);
+        boolean memoryLeaveIUnchanged = emulationNode.getBoolean("memoryLeaveIUnchanged", false);
+        boolean jump = emulationNode.getBoolean("jump", false);
+        chip8.quirks.put("shift", shift);
+        chip8.quirks.put("memoryIncrementByX", memoryIncrementByX);
+        chip8.quirks.put("memoryLeaveIUnchanged", memoryLeaveIUnchanged);
+        chip8.quirks.put("jump", jump);
 
         // load emulation speed
+        //emulationNode.putDouble("speedMultiplier", 1);
         gameTimeline.setRate(emulationNode.getDouble("speedMultiplier", 1));
+
+        // load instructions per frame
+        instructionsPerFrame = emulationNode.getInt("instructionsPerFrame", 8);
 
         // load colors
         double foregroundRed = emulationNode.getDouble("foregroundColorRed", (double)247/255);
@@ -252,21 +266,97 @@ public class Emulator extends Application {
 
         VBox emulationSettingsTabVbox = new VBox();
 
-        HBox emulationMode = new HBox();
-        emulationMode.setPadding(verticalPadding);
-        emulationMode.setAlignment(Pos.CENTER_LEFT);
-        Label emulationModeLabel = new Label("Emulation mode (requires reset!):  ");
-        ComboBox<Chip8.EmulationMode> emulationModeSelect = new ComboBox<>();
-        emulationModeSelect.setValue(chip8.emulationMode);
-        emulationModeSelect.getItems().setAll(Chip8.EmulationMode.values());
-        emulationModeSelect.setOnAction(actionEvent -> {
-            chip8.emulationMode = emulationModeSelect.getValue();
-            emulationNode.put("mode", emulationModeSelect.getValue().toString());
+        VBox emulationQuirks = new VBox();
+        emulationQuirks.setPadding(verticalPadding);
+        emulationQuirks.setAlignment(Pos.CENTER_LEFT);
+
+        Label emulationQuirksHeader = new Label("Emulation Quirks:");
+
+
+        HBox shiftQuirk = new HBox();
+        shiftQuirk.setAlignment(Pos.CENTER_RIGHT);
+        shiftQuirk.setPadding(verticalPadding);
+        Label shiftQuirkLabel = new Label("Shift Quirk:  ");
+        CheckBox shiftQuirkCheckbox = new CheckBox();
+        shiftQuirkCheckbox.setSelected(chip8.quirks.get("shift"));
+        shiftQuirk.getChildren().addAll(shiftQuirkLabel, shiftQuirkCheckbox);
+        shiftQuirkCheckbox.setOnAction((actionEvent) -> {
+            emulationNode.putBoolean("shift", shiftQuirkCheckbox.isSelected());
+            chip8.quirks.put("shift", shiftQuirkCheckbox.isSelected());
             gameTimeline.stop();
             runEmu();
         });
 
-        emulationMode.getChildren().addAll(emulationModeLabel, emulationModeSelect);
+        HBox memoryIncrementQuirk = new HBox();
+        memoryIncrementQuirk.setAlignment(Pos.CENTER_RIGHT);
+        memoryIncrementQuirk.setPadding(verticalPadding);
+        Label memoryIncrementQuirkLabel = new Label("Memory Increment by X Quirk:  ");
+        CheckBox memoryIncrementQuirkCheckbox = new CheckBox();
+        memoryIncrementQuirkCheckbox.setSelected(chip8.quirks.get("memoryIncrementByX"));
+        memoryIncrementQuirk.getChildren().addAll(memoryIncrementQuirkLabel, memoryIncrementQuirkCheckbox);
+
+        memoryIncrementQuirkCheckbox.setOnAction((actionEvent) -> {
+            emulationNode.putBoolean("memoryIncrementByX", memoryIncrementQuirkCheckbox.isSelected());
+            chip8.quirks.put("memoryIncrementByX", memoryIncrementQuirkCheckbox.isSelected());
+            gameTimeline.stop();
+            runEmu();
+        });
+
+        HBox unchangedIQuirk = new HBox();
+        unchangedIQuirk.setAlignment(Pos.CENTER_RIGHT);
+        unchangedIQuirk.setPadding(verticalPadding);
+        Label unchangedIQuirkLabel = new Label("Leave I Unchanged Quirk:  ");
+        CheckBox unchangedIQuirkCheckbox = new CheckBox();
+        unchangedIQuirkCheckbox.setSelected(chip8.quirks.get("memoryLeaveIUnchanged"));
+        unchangedIQuirk.getChildren().addAll(unchangedIQuirkLabel, unchangedIQuirkCheckbox);
+
+        unchangedIQuirkCheckbox.setOnAction((actionEvent) -> {
+            emulationNode.putBoolean("memoryLeaveIUnchanged", unchangedIQuirkCheckbox.isSelected());
+            chip8.quirks.put("memoryLeaveIUnchanged", unchangedIQuirkCheckbox.isSelected());
+            gameTimeline.stop();
+            runEmu();
+        });
+
+        HBox jumpQuirk = new HBox();
+        jumpQuirk.setAlignment(Pos.CENTER_RIGHT);
+        jumpQuirk.setPadding(verticalPadding);
+        Label jumpQuirkLabel = new Label("Jump Quirk:   ");
+        CheckBox jumpQuirkCheckbox = new CheckBox();
+        jumpQuirkCheckbox.setSelected(chip8.quirks.get("jump"));
+        jumpQuirk.getChildren().addAll(jumpQuirkLabel, jumpQuirkCheckbox);
+
+        jumpQuirkCheckbox.setOnAction((actionEvent) -> {
+            emulationNode.putBoolean("jump", jumpQuirkCheckbox.isSelected());
+            chip8.quirks.put("jump", jumpQuirkCheckbox.isSelected());
+            gameTimeline.stop();
+            runEmu();
+        });
+
+        emulationQuirks.getChildren().addAll(emulationQuirksHeader, shiftQuirk, memoryIncrementQuirk, unchangedIQuirk, jumpQuirk);
+
+
+        HBox ipfSelector = new HBox();
+        ipfSelector.setAlignment(Pos.CENTER_LEFT);
+        ipfSelector.setPadding(verticalPadding);
+        Label ipfSelectorLabel = new Label("Instructions Per Frame:  ");
+        Spinner<Integer> ipfSelectorSpinner= new Spinner<>(1, 15, 8);
+        ipfSelectorSpinner.getValueFactory().setValue(instructionsPerFrame);
+        Button ipfResetButton = new Button("Reset");
+
+        ipfSelector.getChildren().addAll(ipfSelectorLabel, ipfSelectorSpinner, ipfResetButton);
+
+        ipfSelectorSpinner.getEditor().textProperty().addListener(actionEvent -> {
+            instructionsPerFrame = ipfSelectorSpinner.getValue();
+            emulationNode.putInt("instructionsPerFrame", instructionsPerFrame);
+        });
+
+        ipfResetButton.setOnAction(actionEvent -> {
+            instructionsPerFrame = 8;
+            ipfSelectorSpinner.getValueFactory().setValue(instructionsPerFrame);
+            emulationNode.putInt("instructionsPerFrame", 8);
+        });
+
+                // speed settings
 
         VBox speedSettingVerticalBox = new VBox();
         HBox speedSettings = new HBox();
@@ -276,7 +366,7 @@ public class Emulator extends Application {
         Slider speedSlider = new Slider();
         speedSlider.setValue(gameTimeline.getRate());
         speedSlider.setMin(0);
-        speedSlider.setMax(3);
+        speedSlider.setMax(5);
 
         Label speedSettingValue = new Label(String.format("    %.2fx", speedSlider.getValue()));
 
@@ -371,7 +461,7 @@ public class Emulator extends Application {
 
         screenSizeElements.getChildren().addAll(screenSizeLabel, screenSizeMultiplier);
 
-        emulationSettingsTabVbox.getChildren().addAll(emulationMode, speedSettingVerticalBox, colorPickerElements, screenSizeElements);
+        emulationSettingsTabVbox.getChildren().addAll(emulationQuirks, ipfSelector, speedSettingVerticalBox, colorPickerElements, screenSizeElements);
         emulationSettingsTabVbox.setPadding(new Insets(15,15,15,15));
         emulationSettingsTab.setContent(emulationSettingsTabVbox);
 
@@ -636,6 +726,7 @@ public class Emulator extends Application {
     }
 
     void resetTimeline(){
+        if(gameTimeline != null) gameTimeline.stop();
         gameTimeline = new Timeline();
         gameTimeline.setCycleCount(Timeline.INDEFINITE);
     }
@@ -662,7 +753,7 @@ public class Emulator extends Application {
     }
 
     KeyFrame getEmulationKeyFrame(){
-        return new KeyFrame(Duration.millis(2.5), (actionEvent) -> {
+        return new KeyFrame(Duration.seconds(1f/(instructionsPerFrame * 60)), (actionEvent) -> {
             if(chip8.emulate) {
                 if(!pauseLabel.getText().isEmpty()){
                     pauseLabel.setText("");
@@ -670,20 +761,36 @@ public class Emulator extends Application {
 
                 chip8.setKeys(getInput());
 
-                if(chip8.beep){
-                    sound.startSound();
-                }
-                else{
-                    sound.stopSound();
-                }
-                chip8.updateTimers();
+                if(frameCount % instructionsPerFrame == 0) {
 
+                    if (chip8.beep) {
+                        sound.startSound();
+                    } else {
+                        sound.stopSound();
+                    }
+                    chip8.updateTimers();
+
+                }
 
                 chip8.emulateCycle();
-                if (chip8.drawFlag) {
-                    drawGraphics(chip8.getGfx());
-                    chip8.drawFlag = false;
+
+                if(frameCount % instructionsPerFrame == 0) {
+                    if (chip8.drawFlag) {
+                        drawGraphics(chip8.getGfx());
+                        chip8.drawFlag = false;
+                    }
+                    frameCount = 0;
                 }
+
+                frameCount++;
+
+                /*
+                try {
+                    Thread.sleep(15);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                 */
             }
             else{
                 pauseLabel.setText("Paused");

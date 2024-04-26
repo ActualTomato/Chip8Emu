@@ -2,7 +2,6 @@ module naren.ragu.chip8emujavafx {
     requires javafx.controls;
     requires javafx.fxml;
     requires java.sql;
-    requires javafx.media;
     requires java.desktop;
     requires java.prefs;
 
