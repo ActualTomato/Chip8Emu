@@ -162,7 +162,6 @@ public class Emulator extends Application {
 
     public void start(Stage primaryStage) {
         // initialize default rom
-        romFile = new File("/Users/naren/Documents/IdeaProjects/Chip8EmuJavaFX/src/main/java/naren/ragu/chip8emujavafx/Space Invaders [David Winter].ch8");
 
         // setup sound
         sound = new Sound(true, 50);
@@ -791,19 +790,13 @@ public class Emulator extends Application {
         resetTimeline();
         chip8.initialize();
 
-        // Maze [David Winter, 199x].ch8
-        // Space Invaders [David Winter].ch8
+        if(romFile != null){
+            chip8.loadGame(romFile.getAbsolutePath());
+        }
+        else{
+            chip8.loadGame(getClass().getResourceAsStream("loadGame.rom"));
+        }
 
-        // 1-chip8-logo.ch8
-        // 2-ibm-logo.ch8
-        // 3-corax+.ch8
-        // 4-flags.ch8
-        // 5-quirks.ch8
-        // 6-keypad.ch8
-
-        chip8.loadGame(romFile.getAbsolutePath());
-
-        //KeyFrame kf =
         gameTimeline.getKeyFrames().addAll(getEmulationKeyFrame());
         gameTimeline.play();
     }
@@ -839,17 +832,11 @@ public class Emulator extends Application {
                 }
 
                 frameCount++;
-
-                /*
-                try {
-                    Thread.sleep(15);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                 */
             }
             else{
-                pauseLabel.setText("Paused");
+                if(!chip8.romPath.equals("demo")){
+                    pauseLabel.setText("Paused");
+                }
                 sound.stopSound();
             }
         });

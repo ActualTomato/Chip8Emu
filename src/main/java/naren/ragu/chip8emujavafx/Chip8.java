@@ -1,6 +1,7 @@
 package naren.ragu.chip8emujavafx;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,6 +12,7 @@ public class Chip8 implements Serializable {
 
     Random random;
     Dictionary<String, Boolean> quirks = new Hashtable<>();
+    String romPath;
     boolean emulate = true;
     boolean beep = false;
 
@@ -423,6 +425,7 @@ public class Chip8 implements Serializable {
     void loadGame(String name){
         try {
             Path path = Paths.get(name);
+            romPath = name;
             byte[] contents = Files.readAllBytes(path);
             for (int i = 0; i < contents.length; i++){
                 char data = (char)(0xFF & contents[i]);
@@ -430,6 +433,19 @@ public class Chip8 implements Serializable {
             }
         } catch (IOException e) {
             System.out.println("Game File Not Found: " + name);
+        }
+    }
+
+    void loadGame(InputStream is){
+        try {
+            romPath = "demo";
+            byte[] contents = is.readAllBytes();
+            for (int i = 0; i < contents.length; i++){
+                char data = (char)(0xFF & contents[i]);
+                memory[i + 0x200] = data;
+            }
+        } catch (IOException e) {
+            System.out.println("InputStream not found! Cannot load ROM.");
         }
     }
 
@@ -483,20 +499,6 @@ public class Chip8 implements Serializable {
             System.out.println(line);
         }
         System.out.println();
-    }
-
-    public static void main(String[] args){
-        Chip8 chip8 = new Chip8();
-        //chip8.printMem();
-        //chip8.printRegisters();
-        //chip8.printDisplay();
-        chip8.loadGame("src/main/java/naren/ragu/chip8emujavafx/charTest.rom");
-
-        for(int i = 0; i < 5; i++){
-            chip8.emulateCycle();
-            chip8.printDisplay();
-        }
-
     }
 }
 
