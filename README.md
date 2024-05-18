@@ -1,4 +1,4 @@
-<img src="https://github.com/ActualTomato/Chip8Emu/assets/73549035/12184a9b-ce9b-4372-bd30-b04b3c753e5d" width="48">
+<img src="https://github.com/ActualTomato/Chip8Emu/assets/73549035/12184a9b-ce9b-4372-bd30-b04b3c753e5d" width="512">
 # Chip8 Virtual Machine / Emulator
 ## Background
 I created this virtual machine/emulator as an exercise, and to familiarize myself with JavaFX, emulator design, and machine code.
