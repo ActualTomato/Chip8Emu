@@ -1,6 +1,4 @@
-![java-17062024-19-06@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/3f7959a4-a07a-4c2b-bf27-8d30c1d5fd07)
-![java-17092024-19-09@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/12184a9b-ce9b-4372-bd30-b04b3c753e5d)
-
+<img src="https://github.com/ActualTomato/Chip8Emu/assets/73549035/12184a9b-ce9b-4372-bd30-b04b3c753e5d" width="48">
 # Chip8 Virtual Machine / Emulator
 ## Background
 I created this virtual machine/emulator as an exercise, and to familiarize myself with JavaFX, emulator design, and machine code.
@@ -38,6 +36,14 @@ I created this virtual machine/emulator as an exercise, and to familiarize mysel
 
 ## Notes
 The "LOAD GAME" screen that shows when opening the emulator is actually a Chip8 ROM that I programmed myself in hex! The emulator loads it up by default and runs it after starting up.
+
+Project was created and tested on an M2 Macbook Pro 14 running MacOS.
+
+## Screenshots and Videos
+![java-17062024-19-06@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/3f7959a4-a07a-4c2b-bf27-8d30c1d5fd07)
+![java-17412024-19-41@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/a2b85210-eb99-452c-aa92-d167b9c62b7e)
+![java-17432024-19-43@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/43ab8f33-c67f-4fc7-937b-b4b08e18632c)
+![ezgif-7-7c68fc0bcb](https://github.com/ActualTomato/Chip8Emu/assets/73549035/90e86ed4-4d79-43f8-9343-5f6cfe290d50)
 
 ## Resources
 Below is a short list of resources I referenced in order to create this implementation:
