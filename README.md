@@ -41,9 +41,10 @@ The "LOAD GAME" screen that shows when opening the emulator is actually a Chip8 
 Project was created and tested on an M2 Macbook Pro 14 running MacOS.
 
 ## Screenshots and Videos
-![java-17062024-19-06@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/3f7959a4-a07a-4c2b-bf27-8d30c1d5fd07)
-![java-17412024-19-41@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/a2b85210-eb99-452c-aa92-d167b9c62b7e)
-![java-17432024-19-43@2x](https://github.com/ActualTomato/Chip8Emu/assets/73549035/43ab8f33-c67f-4fc7-937b-b4b08e18632c)
+<img src="https://github.com/ActualTomato/Chip8Emu/assets/73549035/3f7959a4-a07a-4c2b-bf27-8d30c1d5fd07" width="512">
+<img src="https://github.com/ActualTomato/Chip8Emu/assets/73549035/a2b85210-eb99-452c-aa92-d167b9c62b7e" width="512">
+<img src="https://github.com/ActualTomato/Chip8Emu/assets/73549035/43ab8f33-c67f-4fc7-937b-b4b08e18632c" width="512">
+
 ![ezgif-7-7c68fc0bcb](https://github.com/ActualTomato/Chip8Emu/assets/73549035/90e86ed4-4d79-43f8-9343-5f6cfe290d50)
 
 ## Resources
