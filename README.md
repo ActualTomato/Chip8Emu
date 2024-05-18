@@ -8,7 +8,7 @@ I created this virtual machine/emulator as an exercise, and to familiarize mysel
 ## Features
 * Emulation of the original Chip8 specification
 * Clean JavaFX-based user interface
-* Ability to enable and disable implementation quirks
+* Ability to enable and disable "quirks"
   * Implemented quirks:
     * Shift Quirk
     * Memory Increment by X Quirk
@@ -21,10 +21,10 @@ I created this virtual machine/emulator as an exercise, and to familiarize mysel
 * Pausing
 * Configuration of emulation as well as emulator itself
   * Saved to system using Java Preferences API, persistent when reopening
-* Configurable screen size multiplication factor
-* Configurable emulation speed
-* Configurable keybinds for hexadecimal keypad
-* Configurable colors
+  * Configurable screen size multiplication factor
+  * Configurable emulation speed
+  * Configurable keybinds for hexadecimal keypad
+  * Configurable colors
 
 ## Limitations
 * SuperChip and other specifications are not implemented
